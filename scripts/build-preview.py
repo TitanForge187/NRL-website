@@ -33,6 +33,8 @@ def embed_team_photo(m):
 html=re.sub(r"([\"'])(assets/team/[^\"']+\.(?:jpg|jpeg|png))\1",embed_team_photo,html)
 html=html.replace("image.src='assets/manga-titan.svg'","image.src='data:image/svg+xml;base64,"+base64.b64encode((ROOT/'assets/manga-titan.svg').read_bytes()).decode()+"'")
 html=re.sub(r'(src|poster|href)="(assets/[^\"]+)"',embed,html)
+# Embed the shared comic artwork once, including CSS background images.
+html=re.sub(r"url\('(?P<path>assets/[^']+\.(?:jpg|png|svg))'\)",lambda m:"url('data:"+{'.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml'}[Path(m['path']).suffix]+";base64,"+base64.b64encode((ROOT/m['path']).read_bytes()).decode()+"')",html)
 # Embed fonts as well, preserving the exact layout offline.
 html=re.sub(r"url\('(?P<path>assets/[^']+\.ttf)'\)",lambda m:"url('data:font/ttf;base64,"+base64.b64encode((ROOT/m['path']).read_bytes()).decode()+"')",html)
 assert 'type="module"' not in html

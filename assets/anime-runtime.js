@@ -29,4 +29,18 @@
  addEventListener('scroll',()=>{if(!queued){queued=true;requestAnimationFrame(update);}},{passive:true});addEventListener('resize',update);update();
  document.querySelector('#hero-ignite').addEventListener('click',()=>{hero.classList.toggle('anime-awakened',document.querySelector('#hero-ignite').getAttribute('aria-pressed')==='true');});
  if(matchMedia('(pointer:fine)').matches)for(const card of document.querySelectorAll('.module-card,.team .card,.photo-panel')){card.addEventListener('pointermove',event=>{if(reduced.matches||document.body.classList.contains('paused'))return;const r=card.getBoundingClientRect();card.style.setProperty('--panel-x',(event.clientX-r.left)/r.width);});card.addEventListener('pointerleave',()=>card.style.setProperty('--panel-x','.5'));}
+
+ // Ink treatment is reversible, so photographs remain available in their original colour.
+ document.body.classList.add('manga-mode');
+ const inkToggle=document.createElement('button');inkToggle.className='manga-mode-toggle';inkToggle.type='button';inkToggle.textContent='MANGA INK ON';inkToggle.setAttribute('aria-pressed','true');inkToggle.setAttribute('aria-label','Manga ink treatment for photos and model views');
+ inkToggle.addEventListener('click',()=>{const active=document.body.classList.toggle('manga-mode');inkToggle.setAttribute('aria-pressed',String(active));inkToggle.textContent=active?'MANGA INK ON':'ORIGINAL PHOTOS';});document.body.append(inkToggle);
+ const pendingAnimations=new Set();
+ const panelEntrance=new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting)continue;panelEntrance.unobserve(entry.target);if(reduced.matches||document.body.classList.contains('paused'))continue;const animation=entry.target.animate([{opacity:.35,transform:'perspective(1000px) translateY(35px) rotateX(7deg)'},{opacity:1,transform:'perspective(1000px) translateY(0) rotateX(0deg)'}],{duration:720,delay:Number(entry.target.dataset.mangaDelay||0),easing:'cubic-bezier(.16,1,.3,1)'});pendingAnimations.add(animation);animation.onfinish=animation.oncancel=()=>pendingAnimations.delete(animation);}},{threshold:.13});
+ function observePanels(root){root.querySelectorAll('.manga-panel,.module-card,.photo-panel,.card').forEach((panel,i)=>{if(panel.dataset.mangaObserved)return;panel.dataset.mangaObserved='true';panel.dataset.mangaDelay=String((i%3)*85);panelEntrance.observe(panel);});}
+ observePanels(document);
+ new MutationObserver(()=>observePanels(document.querySelector('#cards'))).observe(document.querySelector('#cards'),{childList:true});
+ const ambientObserver=new IntersectionObserver(entries=>entries.forEach(entry=>entry.target.classList.toggle('manga-motion-visible',entry.isIntersecting)),{rootMargin:'60px'});
+ document.querySelectorAll('.manga-scene-cut,.anime-eye-strip,.manga-panel').forEach(node=>ambientObserver.observe(node));
+ function synchronizeMotion(){const freeze=reduced.matches||document.body.classList.contains('paused');for(const animation of pendingAnimations){if(reduced.matches)animation.finish();else if(freeze)animation.pause();else animation.play();}}
+ new MutationObserver(synchronizeMotion).observe(document.body,{attributes:true,attributeFilter:['class']});reduced.addEventListener('change',synchronizeMotion);
 })();
