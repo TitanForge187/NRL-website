@@ -4,7 +4,7 @@ import base64,re
 ROOT=Path(__file__).resolve().parents[1]
 geometry=(ROOT/'assets/robot-geometry.js').read_text().replace('export ','')
 model=(ROOT/'assets/robot.json').read_text().strip()
-runtime='\n'.join((ROOT/'assets'/name).read_text().replace('export ','') for name in ['studio-renderer.js','viewer-runtime.js','arena-physics.js','arena-presentation.js','arena-runtime.js','experience-runtime.js','cinematic-runtime.js','navigation-runtime.js'])
+runtime='\n'.join((ROOT/'assets'/name).read_text().replace('export ','') for name in ['studio-renderer.js','viewer-runtime.js','arena-physics.js','arena-presentation.js','arena-runtime.js','experience-runtime.js','cinematic-runtime.js','navigation-runtime.js','anime-runtime.js'])
 three=(ROOT/'assets/three.module.js').read_text().replace('\t\t\t \tmaterial', '\t\t\t\tmaterial')
 exports=re.search(r'export \{ (.*?) \};',three,re.S).group(1)
 three=re.sub(r'export \{ .*? \};','',three,flags=re.S)
@@ -29,6 +29,7 @@ def embed_team_photo(m):
  mime='image/png' if Path(path).suffix=='.png' else 'image/jpeg'
  return quote+'data:'+mime+';base64,'+base64.b64encode((ROOT/path).read_bytes()).decode()+quote
 html=re.sub(r"([\"'])(assets/team/[^\"']+\.(?:jpg|jpeg|png))\1",embed_team_photo,html)
+html=html.replace("image.src='assets/manga-titan.svg'","image.src='data:image/svg+xml;base64,"+base64.b64encode((ROOT/'assets/manga-titan.svg').read_bytes()).decode()+"'")
 html=re.sub(r'(src|poster|href)="(assets/[^\"]+)"',embed,html)
 # Embed fonts as well, preserving the exact layout offline.
 html=re.sub(r"url\('(?P<path>assets/[^']+\.ttf)'\)",lambda m:"url('data:font/ttf;base64,"+base64.b64encode((ROOT/m['path']).read_bytes()).decode()+"')",html)

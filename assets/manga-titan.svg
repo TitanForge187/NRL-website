@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" fill="none">
+ <defs><pattern id="dots" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.3" fill="#111" opacity=".2"/></pattern></defs>
+ <path fill="#f5f0e7" d="M0 0h1200v320H0z"/><path fill="url(#dots)" d="M0 0h1200v320H0z"/>
+ <g stroke="#141114" stroke-width="5"><path fill="#c90c30" d="m370-40 230 70 230-70-60 150 120 210H310l120-210z"/><path fill="#161216" d="m600 28-51 103 51 174 51-174z"/><path fill="#f5f0e7" d="m348 76 208 50-38 89-145-60-69-94zm504 0-208 50 38 89 145-60 69-94z"/><path fill="#171216" d="m359 112 170 27-23 40-125-45zm482 0-170 27 23 40 125-45z"/><path fill="#f01a40" d="m396 128 104 18-7 12-88-17zm408 0-104 18 7 12 88-17z"/><path d="m375 184 120 54-57 67m387-121-120 54 57 67M458 12l-30 63m314-63 30 63M539 245l61 64 61-64"/></g>
+ <g stroke="#171216"><path stroke-width="8" d="m0 8 290 85M0 130l305 12M0 307l314-118m886-181L910 93m290 37-305 12m305 165L886 189"/><path stroke-width="3" d="m0 55 282 59M0 92l271 33M0 189l281-28M0 239l294-63m906-121-282 59m282-22-271 33m271 64-281-28m281 78-294-63"/><path stroke-width="2" d="m0 165 208-12M1200 165l-208-12"/></g>
+</svg>
