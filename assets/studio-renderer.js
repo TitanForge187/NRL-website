@@ -1,16 +1,26 @@
+let brushedMetalTexture;
+function mechanicalGrain(){
+ if(brushedMetalTexture)return brushedMetalTexture;
+ const tile=document.createElement('canvas');tile.width=tile.height=128;const ctx=tile.getContext('2d');
+ ctx.fillStyle='#929292';ctx.fillRect(0,0,128,128);
+ for(let y=0;y<128;y++){const shade=126+Math.round(25*Math.sin(y*17.37));ctx.strokeStyle='rgb('+shade+','+shade+','+shade+')';ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(128,y);ctx.stroke();}
+ brushedMetalTexture=new THREE.CanvasTexture(tile);brushedMetalTexture.wrapS=brushedMetalTexture.wrapT=THREE.RepeatWrapping;brushedMetalTexture.repeat.set(3,3);return brushedMetalTexture;
+}
 function makeRobotMeshes(group){
  return parts.map(part=>{
-   const vertices=[],normals=[],adj=part.v.map(()=>[]);
+   const vertices=[],normals=[],uvs=[],adj=part.v.map(()=>[]);
    const faces=part.f.map(face=>{
     const a=new THREE.Vector3().fromArray(part.v[face[0]]),b=new THREE.Vector3().fromArray(part.v[face[1]]),c=new THREE.Vector3().fromArray(part.v[face[2]]);
     const n=b.sub(a).cross(c.sub(a)).normalize();face.forEach(k=>adj[k].push(n));return {face,n};
    });
    for(const {face,n} of faces)for(let j=1;j<face.length-1;j++)for(const k of [face[0],face[j],face[j+1]]){
-    vertices.push(...part.v[k]);const normal=new THREE.Vector3();for(const neighbor of adj[k])if(neighbor.dot(n)>.75)normal.add(neighbor);normal.normalize();normals.push(normal.x,normal.y,normal.z);
+    const v=part.v[k];vertices.push(...v);const normal=new THREE.Vector3();for(const neighbor of adj[k])if(neighbor.dot(n)>.75)normal.add(neighbor);normal.normalize();normals.push(normal.x,normal.y,normal.z);
+    const dominant=Math.abs(n.y)>.6?1:Math.abs(n.x)>.6?0:2;uvs.push(v[dominant===0?2:0]*2,v[dominant===1?2:1]*2);
    }
-   const shape=new THREE.BufferGeometry();shape.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));shape.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));
+   const shape=new THREE.BufferGeometry();shape.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));shape.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));shape.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
    const metal=part.material==='metal',glass=part.material==='glass',rubber=part.material==='rubber';
-   const material=new THREE.MeshPhysicalMaterial({color:glass?0xdcecf0:part.c,metalness:metal?.92:0,roughness:glass?.09:metal?.26:rubber?.88:.42,clearcoat:rubber?0:.12,clearcoatRoughness:.3,side:THREE.DoubleSide,transparent:glass,opacity:glass?.24:1,depthWrite:!glass,envMapIntensity:metal?1.3:.7});
+   const material=new THREE.MeshPhysicalMaterial({color:glass?0xdcecf0:part.c,metalness:metal?.84:0,roughness:glass?.12:metal?(part.hardware?.24:.36):rubber?.94:.48,clearcoat:metal?.18:0,clearcoatRoughness:.35,side:THREE.DoubleSide,transparent:glass,opacity:glass?.16:1,depthWrite:!glass,envMapIntensity:metal?1.15:.7});
+   if(metal){material.bumpMap=mechanicalGrain();material.bumpScale=.0012;}
    const mesh=new THREE.Mesh(shape,material);mesh.castShadow=!glass;mesh.receiveShadow=true;mesh.position.fromArray(part.p);group.add(mesh);mesh.userData.part=part;return {mesh,part};
   });
 }
@@ -27,20 +37,20 @@ function mountStudio(host,fallback,{hero=false}={}){
   const camera=new THREE.PerspectiveCamera(34,1,.1,150);
   // Local softbox environment: no network textures or third-party asset dependencies.
   const room=new THREE.Scene();room.background=new THREE.Color('#303038');
-  for(const [position,size,color,intensity] of [[[-4,6,3],[3,5,.1],0xeaf3ff,4],[[5,4,0],[2,4,.1],0xffffff,3],[[0,5,-5],[5,2,.1],0xff2848,2]]){
+  for(const [position,size,color,intensity] of [[[-4,6,3],[3,5,.1],0xeaf3ff,4],[[5,4,0],[2,4,.1],0xffffff,3],[[0,5,-5],[5,2,.1],hero?0xff2848:0xe2eaff,2]]){
    const panel=new THREE.Mesh(new THREE.BoxGeometry(...size),new THREE.MeshBasicMaterial({color:new THREE.Color(color).multiplyScalar(intensity)}));panel.position.set(...position);panel.lookAt(0,1,0);room.add(panel);
   }
   const pmrem=new THREE.PMREMGenerator(renderer),environment=pmrem.fromScene(room,.08);scene.environment=environment.texture;pmrem.dispose();
   room.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
   scene.add(new THREE.HemisphereLight(0xc7d6e8,0x292027,.8));
   const key=new THREE.DirectionalLight(0xfff2e7,3.2);key.position.set(-3,7,5);key.castShadow=true;key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-9,right:9,top:10,bottom:-8,far:35});key.shadow.bias=-.0003;key.shadow.normalBias=.025;key.shadow.radius=4;scene.add(key);
-  const rim=new THREE.DirectionalLight(0xff2449,1.5);rim.position.set(4,3,-4);scene.add(rim);
+  const rim=new THREE.DirectionalLight(hero?0xff2449:0xc9ddff,1.5);rim.position.set(4,3,-4);scene.add(rim);
   const robot=new THREE.Group();scene.add(robot);
   const meshes=makeRobotMeshes(robot);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x17171b,metalness:.18,roughness:.62}));floor.rotation.x=-Math.PI/2;floor.position.y=-.7;floor.receiveShadow=true;if(hero){floor.material.dispose();floor.material=new THREE.ShadowMaterial({opacity:.28});floor.position.y=-.08;}scene.add(floor);
   const canvas=renderer.domElement;canvas.className='robot-canvas';canvas.setAttribute('role','img');canvas.setAttribute('aria-label','Studio-lit Hyperdrive robot. Drag to orbit.');
   host.append(canvas);fallback.style.display='none';host.classList.add('has-3d');
-  if(!hero)document.querySelector('#render-status').textContent='STUDIO 3D · REAL-TIME MATERIALS';
+  if(!hero)document.querySelector('#render-status').textContent='MECHANICAL 3D · '+parts.length+' PARTS';
   let yaw=.55,pitch=.55,visible=true,drag=false,lastX=0,lastY=0,last=0,paused=false,previousFocus='',lastSeparation=-1;
   const rotate=document.querySelector('#rotate'),reduced=matchMedia('(prefers-reduced-motion: reduce)'),box=new THREE.Box3(),center=new THREE.Vector3(),size=new THREE.Vector3(),target=new THREE.Vector3(0,.8,0);
   if(!hero)rotate.addEventListener('input',()=>yaw=Number(rotate.value)*Math.PI/180);
@@ -83,7 +93,7 @@ function mountStudio(host,fallback,{hero=false}={}){
    if(hero&&!frozen&&!paused){ignition+=(Number(host.dataset.ignition||0)-ignition)*(1-Math.exp(-dt*3));orbitals.rotation.y+=dt*(.08+ignition*.22);orbitals.scale.setScalar(1+ignition*.08);orbitals.rotation.z=Math.sin(time*.00025)*.10;pulseLight.intensity=18+ignition*32+Math.sin(time*.001)*7;scan.material.opacity=.12+ignition*.12;scan.position.y=.35+(Math.sin(time*.00065)+1)*.7;heroTiltX+=(heroPointerX*.16-heroTiltX)*.06;heroTiltY+=(heroPointerY*.1-heroTiltY)*.06;}
    if(hero&&!paused&&!drag&&!frozen)yaw+=dt*.10;
    const separation=hero?0:Number(host.dataset.separation||0),focus=hero?'all':host.dataset.system||'all',wire=!hero&&document.querySelector('#wire').getAttribute('aria-pressed')==='true';
-   for(const {mesh,part} of meshes){mesh.position.fromArray(offsetPart(part,separation));mesh.visible=focus==='all'||part.system===focus;mesh.material.wireframe=wire;mesh.material.emissive.setHex(mesh===selected?0x77142d:0x000000);const xray=!hero&&document.querySelector('#xray')?.getAttribute('aria-pressed')==='true';const glass=part.material==='glass';mesh.material.transparent=glass||xray;mesh.material.opacity=xray?(mesh===selected?1:.16):(glass?.24:1);mesh.material.depthWrite=!glass&&!xray;}
+   for(const {mesh,part} of meshes){mesh.position.fromArray(offsetPart(part,separation));if(part.hardware)mesh.rotation[part.fastenerAxis]=clamp(separation/.28)*Math.PI*8;mesh.visible=focus==='all'||part.system===focus;mesh.material.wireframe=wire;mesh.material.emissive.setHex(mesh===selected?0x77142d:0x000000);const xray=!hero&&document.querySelector('#xray')?.getAttribute('aria-pressed')==='true';const glass=part.material==='glass';mesh.material.transparent=glass||xray;mesh.material.opacity=xray?(mesh===selected?1:.16):(glass?.16:1);mesh.material.depthWrite=!glass&&!xray;}
    if(separation!==lastSeparation||focus!==previousFocus){
     box.makeEmpty();for(const {mesh} of meshes)if(mesh.visible)box.expandByObject(mesh);box.getCenter(center);box.getSize(size);radius=size.length()*.52;previousFocus=focus;lastSeparation=separation;
    }

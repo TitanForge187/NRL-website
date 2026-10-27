@@ -6,6 +6,17 @@ parts=[]
 def part(name,p,v,f,c,g=0,alpha=1,explode=None,**extra):
  parts.append(dict(name=name,p=p,v=v,f=f,c=c,g=g,alpha=alpha,explode=explode or [0,.7+g*.3,0],**extra))
 def box(name,p,s,c,g=0,alpha=1,angle=0,explode=None,rx=0,**extra):
+ if alpha==1 and min(s)>.025:
+  # Small machined edge breaks catch the studio light without rounding the part away.
+  b=min(.012,min(s)*.16);v=[]
+  for yy,inset in [(-s[1]/2,b),(-s[1]/2+b,0),(s[1]/2-b,0),(s[1]/2,b)]:
+   hx=s[0]/2-inset;hz=s[2]/2-inset;ch=min(b,hx*.3,hz*.3)
+   for xx,zz in [(-hx+ch,-hz),(hx-ch,-hz),(hx,-hz+ch),(hx,hz-ch),(hx-ch,hz),(-hx+ch,hz),(-hx,hz-ch),(-hx,-hz+ch)]:
+    vx=xx*math.cos(angle)-yy*math.sin(angle);vy=xx*math.sin(angle)+yy*math.cos(angle)
+    v.append([vx,vy*math.cos(rx)-zz*math.sin(rx),vy*math.sin(rx)+zz*math.cos(rx)])
+  f=[list(range(7,-1,-1)),list(range(24,32))]
+  f.extend([[j*8+i,j*8+(i+1)%8,(j+1)*8+(i+1)%8,(j+1)*8+i] for j in range(3) for i in range(8)])
+  part(name,p,v,f,c,g,alpha,explode,**extra);return
  v=[]
  for z in [-1,1]:
   for y in [-1,1]:
@@ -25,6 +36,55 @@ def cyl(name,p,r,length,c,g=1,axis='x',n=20,explode=None,**extra):
  f=[list(range(n-1,-1,-1)),list(range(n,n*2))]
  f.extend([[i,(i+1)%n,(i+1)%n+n,i+n] for i in range(n)])
  part(name,p,v,f,c,g,explode=explode,**extra)
+def lathe(name,p,profile,c,g=0,axis='y',n=32,**extra):
+ """Closed radial profile: real bores and socket cavities, not black decals."""
+ v=[]
+ for radius,height in profile:
+  for i in range(n):
+   a=math.tau*i/n; q=[radius*math.cos(a),height,radius*math.sin(a)]
+   if axis=='x':q=[q[1],q[0],q[2]]
+   if axis=='z':q=[q[0],q[2],q[1]]
+   v.append(q)
+ f=[]
+ for j in range(len(profile)):
+  for i in range(n):f.append([j*n+i,j*n+(i+1)%n,((j+1)%len(profile))*n+(i+1)%n,((j+1)%len(profile))*n+i])
+ part(name,p,v,f,c,g,**extra)
+def merge_since(start,name,**extra):
+ """Keep the manufactured object's detail together during disassembly."""
+ pieces=parts[start:]; base=pieces[0]; vertices=[];faces=[]
+ for piece in pieces:
+  k=len(vertices);vertices.extend([[v[j]+piece['p'][j]-base['p'][j] for j in range(3)] for v in piece['v']]);faces.extend([[i+k for i in face] for face in piece['f']])
+ base.update(name=name,v=vertices,f=faces,**extra);parts[start:]=[base]
+def screw(name,p,g=0,axis='x',length=.11,explode=None,wheel=None):
+ start=len(parts); opts={'explode':explode,'system':'drive' if g==1 else 'frame' if g==0 else 'electronics','hardware':True,'material':'metal'}
+ if wheel is not None:opts['wheel']=wheel
+ # Chamfered socket head with a recessed six-sided Allen drive.
+ lathe(name,p,[(.030,-.015),(.038,-.010),(.038,.018),(.032,.026),(.018,.026),(.018,.010),(.001,.010),(.001,-.015)],'#9caab4',g,axis,n=6,**opts)
+ lathe('Captive steel washer',p,[(.022,-.021),(.049,-.021),(.049,-.016),(.022,-.016)],'#bdc6cc',g,axis,n=24,**opts)
+ lathe('Threaded steel shank',p,[(.001,-length),(.021,-length),(.021,-.014),(.001,-.014)],'#7c8c96',g,axis,n=16,**opts)
+ # A continuous helical crest, joined into the bolt mesh rather than separate rings.
+ verts=[];faces=[];turns=max(3,round(length/.014));steps=turns*12
+ for i in range(steps+1):
+  a=math.tau*i/12;h=-length+(length-.019)*i/steps
+  for r,dh in [(.020,-.003),(.026,0),(.020,.003)]:
+   q=[r*math.cos(a),h+dh,r*math.sin(a)]
+   if axis=='x':q=[q[1],q[0],q[2]]
+   if axis=='z':q=[q[0],q[2],q[1]]
+   verts.append(q)
+ for i in range(steps):
+  for j in range(2):faces.append([i*3+j,(i+1)*3+j,(i+1)*3+j+1,i*3+j+1])
+ part('Helical thread crest',p,verts,faces,'#aebbc3',g,**opts)
+ merge_since(start,name,hardware=True,fastenerAxis=axis,detail='Recessed hex socket, captive washer and helical thread')
+ if axis=='x' and p[0]<0:
+  parts[-1]['v']=[[ -v[0],v[1],v[2]] for v in parts[-1]['v']]
+  parts[-1]['f']=[face[::-1] for face in parts[-1]['f']]
+def channel(name,p,length,axis='z',explode=None):
+ start=len(parts)
+ # Open U-section with visible wall thickness and an internal cavity.
+ for center,size in [([0,-.029,0],[.10,.018,length]),([-.043,.008,0],[.014,.074,length]),([.043,.008,0],[.014,.074,length])]:
+  if axis=='x':center=[center[2],center[1],center[0]];size=[size[2],size[1],size[0]]
+  box(name,[p[j]+center[j] for j in range(3)],size,'#bac4cc',0,explode=explode,material='metal')
+ merge_since(start,name,detail='Hollow aluminium U-channel')
 def ring():
  n=40;profile=[(.315,-.15),(.435,-.15),(.475,-.11),(.475,.11),(.435,.15),(.315,.15),(.275,.11),(.275,-.11)]
  v=[[r*math.cos(i*math.tau/n),y,r*math.sin(i*math.tau/n)] for i in range(n) for r,y in profile]
@@ -38,11 +98,11 @@ for x in [-1.3,1.3]:
  for z in [-1.57,1.57]:
   box('Side plate upright',[x,.94,z],[.055,.83,.055],'#bac4c7',0,explode=[side*.6,.12,0])
  for y in [.58,1.32]:
-  box('Longitudinal aluminium channel',[x,y,0],[.075,.065,3.26],'#a9b3b8',0,explode=[side*.55,0,0])
+  channel('Longitudinal aluminium channel',[x,y,0],3.26,explode=[side*.55,0,0])
  for z in [-1.4,-1,-.6,-.2,.2,.6,1,1.4]:
-  cyl('Chassis mounting fastener',[x+side*.04,1.16,z],.025,.018,'#616b70',0,n=8,explode=[side*.75,.12,0])
+  screw('Chassis mounting socket screw',[x+side*.06,1.16,z],axis='x',explode=[side*.75,.12,0])
 for z in [-1.57,-.55,.65,1.57]:
- box('Cross chassis support',[0,.65,z],[2.55,.08,.08],'#bdc5c7',0,explode=[0,-.2,z*.25])
+ channel('Cross chassis support',[0,.65,z],2.55,axis='x',explode=[0,-.2,z*.25])
 box('Clear rear wall',[0,1.02,-1.62],[2.65,.72,.055],'#bbd8df',0,.2,explode=[0,.3,-.55])
 # Four conventional rubber traction wheels, not mecanum or omni rollers.
 for x in [-1.57,1.57]:
@@ -80,7 +140,7 @@ for z in [-1.12,-.92,-.72,-.52,-.32]:
  box('Controller connection header',[.94,1.17,z],[.12,.12,.13],'#e1d6ae',2,explode=[.25,1.05,-.2])
 box('Controller USB connector',[.25,1.17,-.65],[.16,.13,.24],'#b5c1c6',2,explode=[.25,1.05,-.2])
 for x in [.28,.85]:
- for z in [-1.18,-.14]:cyl('Board standoff',[x,1.03,z],.035,.13,'#c6cbca',2,axis='y',n=8,explode=[.25,.95,-.2])
+ for z in [-1.18,-.14]:lathe('Brass threaded standoff',[x,1.03,z],[(.018,-.065),(.043,-.065),(.043,.065),(.018,.065)],'#ad8d4d',2,n=6,explode=[.25,.95,-.2],system='electronics',material='metal')
 # Curved individual wire routes; each wire is a single continuous tube mesh.
 def tube(name,start,end,color,index):
  points=[];n=24;sides=8
@@ -118,9 +178,30 @@ for x in [-1.57,1.57]:
   center=[x,.56,z]
   for k in range(6):
    a=k*math.tau/6
-   cyl('Hub socket bolt',[x+side*.24,.56+.19*math.cos(a),z+.19*math.sin(a)],.026,.035,'#606b76',1,n=8,explode=[side*2.3,.14+(k//3)*.2,z*.7+(k%3)*.11],wheel=center)
+   screw('Hub socket bolt',[x+side*.25,.56+.19*math.cos(a),z+.19*math.sin(a)],g=1,axis='x',explode=[side*1.0,0,z*.25],wheel=center)
   cyl('Drive axle',[side*1.3,.56,z],.055,.6,'#c9d6df',1,n=12,explode=[side*1.5,-.18,z*.65])
   cyl('Motor end cap',[side*.67,.56,z],.174,.04,'#59626b',1,n=20,explode=[side*.85,.38,z*.65])
+# Physical mounting hardware: bored bearing rings, flanged motor plates, nuts and gussets.
+for side in [-1,1]:
+ for z in [-1.06,1.06]:
+  exp=[side*.55,.12,z*.25]
+  lathe('Flanged axle bearing',[side*1.31,.56,z],[(.060,-.025),(.115,-.025),(.128,-.015),(.128,.015),(.115,.025),(.060,.025)],'#89969f',1,axis='x',explode=exp,system='drive',material='metal')
+  for dz in [-.20,.20]:
+   screw('Motor mount cap screw',[side*1.37,.68,z+dz],g=1,axis='x',length=.14,explode=exp)
+  start=len(parts)
+  box('Motor mounting foot',[side*1.16,.70,z],[.38,.035,.52],'#99a8b4',1,explode=exp)
+  box('Motor mounting cheek',[side*1.30,.56,z],[.035,.31,.52],'#99a8b4',1,explode=exp)
+  merge_since(start,'Folded motor mounting bracket',material='metal',system='drive')
+ for z in [-1.48,1.48]:
+  exp=[side*.55,.15,z*.22]
+  start=len(parts)
+  box('Corner angle horizontal',[side*1.18,.70,z],[.30,.032,.27],'#9eaeb8',0,explode=exp)
+  box('Corner angle vertical',[side*1.30,.82,z],[.032,.27,.27],'#9eaeb8',0,explode=exp)
+  merge_since(start,'Chassis corner angle bracket',material='metal',system='frame')
+  for dz in [-.07,.07]:screw('Corner bracket socket screw',[side*1.18,.744,z+dz],axis='y',explode=exp)
+for x in [.28,.85]:
+ for z in [-1.18,-.14]:
+  screw('PCB mounting socket screw',[x,1.145,z],g=2,axis='y',length=.16,explode=[.25,1.05,-.2])
 # Tyre tread is integral to the tyre, so combine its mesh instead of exploding rubber lugs.
 for wheel in [p for p in parts if p['name']=='Rubber traction wheel']:
  lugs=[p for p in parts if p['name']=='Tyre tread lug' and p['wheel']==wheel['wheel']]
@@ -143,6 +224,15 @@ for item in parts:
   item['explode']=[item['explode'][0]*2+(idx%3-1)*.5,item['explode'][1]*2.4,item['explode'][2]*2.5+(idx%3)*.24];item['delay']=.27+(idx%4)*.025
  else:
   item['explode']=[3.6+(idx%4)*.6,.6+(idx//4)*.26,-2.2+(idx%3)*.55];item['delay']=.37+(idx%5)*.02
- item['material']='glass' if item.get('alpha',1)<1 else 'rubber' if 'Rubber' in name else 'metal' if any(k in name.lower() for k in ['hub','aluminium','support','bolt','axle','fastener','rail','motor','standoff']) else 'polymer'
-(ROOT/'assets/robot.json').write_text(json.dumps(parts,separators=(',',':'))+'\n')
+ item['material']=item.get('material') or ('glass' if item.get('alpha',1)<1 else 'rubber' if 'Rubber' in name else 'metal' if any(k in name.lower() for k in ['hub','aluminium','support','bolt','axle','fastener','screw','rail','motor','standoff','bracket']) else 'polymer')
+ if item.get('hardware'):
+  axis=item['fastenerAxis'];direction=-1 if axis=='x' and item['p'][0]<0 else 1
+  item['explode']=[0,0,0];item['explode'][{'x':0,'y':1,'z':2}[axis]]=direction*(2.4 if axis=='x' else 2.1)
+  item['delay']=.015
+def compact(value):
+ if isinstance(value,float):return round(value,5)
+ if isinstance(value,list):return [compact(v) for v in value]
+ if isinstance(value,dict):return {k:compact(v) for k,v in value.items()}
+ return value
+(ROOT/'assets/robot.json').write_text(json.dumps(compact(parts),separators=(',',':'))+'\n')
 print(f'Built {len(parts)} independent components including {counts["wiring"]} continuous wire routes; proportions approximate.')

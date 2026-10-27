@@ -7,7 +7,7 @@ function mountViewer(host,fallback,{hero=false,softwareOnly=false}={}){
  canvas.className='robot-canvas';canvas.setAttribute('role','img');
  canvas.setAttribute('aria-label',hero?'Animated three-dimensional Hyperdrive chassis. Drag to rotate.':'Interactive Hyperdrive chassis. Drag to rotate, or use the rotation, assembly and wireframe controls.');
  host.append(canvas);fallback.style.display='none';host.classList.add('has-3d');
- if(!hero)document.querySelector('#render-status').textContent='LIVE 3D · 147 COMPONENTS';
+ if(!hero)document.querySelector('#render-status').textContent='LIVE 3D · 179 COMPONENTS';
  let w=0,h=0,yaw=.55,pitch=.56,visible=true,drag=false,x=0,y=0,previous=0,frames=0;
  const rotate=document.querySelector('#rotate'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
  if(!hero){rotate.min=-180;rotate.max=180;rotate.value=32;rotate.setAttribute('aria-label','Orbit Hyperdrive chassis');rotate.addEventListener('input',()=>yaw=Number(rotate.value)*Math.PI/180);}
