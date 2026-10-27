@@ -41,10 +41,7 @@ function mountViewer(host,fallback,{hero=false,softwareOnly=false}={}){
   const wire=!hero&&document.querySelector('#wire').getAttribute('aria-pressed')==='true';
   ctx.globalAlpha=1;ctx.clearRect(0,0,w,h);
   if(!hero){
-   const bg=ctx.createLinearGradient(0,0,w,h);bg.addColorStop(0,'#141418');bg.addColorStop(.5,'#24242a');bg.addColorStop(1,'#0d0d11');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
-   ctx.lineWidth=.6;ctx.strokeStyle='#ffffff06';
-   for(let i=0;i<w;i+=36){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,h);ctx.stroke();}
-   for(let i=0;i<h;i+=36){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(w,i);ctx.stroke();}
+   const bg=ctx.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#e4e6e2');bg.addColorStop(1,'#cbd0cb');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
   }
   // Soft contact shadow grounds the assembled chassis and fades during disassembly.
   ctx.save();ctx.translate(w*.5,h*.77);ctx.scale(1,.21);

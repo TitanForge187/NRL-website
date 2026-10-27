@@ -109,13 +109,18 @@ for x in [-1.57,1.57]:
  side=1 if x>0 else -1
  for z in [-1.06,1.06]:
   center=[x,.56,z];exp=[side*.9,0,z*.25]
-  cyl('Rubber traction wheel',center,.54,.39,'#202427',1,explode=exp,wheel=center)
-  for i in range(16):
-   a=i*math.tau/16
-   box('Tyre tread lug',[x,.56+.535*math.cos(a),z+.535*math.sin(a)],[.415,.075,.15],'#303538',1,explode=exp,wheel=center,rx=a)
-  cyl('Silver wheel hub',[x+side*.205,.56,z],.29,.035,'#bcc2c3',1,explode=exp,wheel=center)
-  cyl('Hub center',[x+side*.23,.56,z],.095,.05,'#747f84',1,n=12,explode=exp,wheel=center)
-  cyl('DC drive motor',[side*.95,.56,z],.17,.53,'#aab0b4',1,explode=[side*.45,.15,z*.25])
+  lathe('Rubber traction wheel',center,[(.305,-.19),(.43,-.19),(.50,-.16),(.537,-.11),(.545,0),(.537,.11),(.50,.16),(.43,.19),(.305,.19)],'#151719',1,axis='x',n=64,explode=exp,wheel=center,material='rubber')
+  for i in range(40):
+   a=i*math.tau/40
+   box('Tyre tread lug',[x,.56+.538*math.cos(a),z+.538*math.sin(a)],[.29,.022,.058],'#202224',1,explode=exp,wheel=center,rx=a)
+  start=len(parts);hub=[x+side*.205,.56,z]
+  lathe('Silver wheel hub',hub,[(.244,-.025),(.29,-.025),(.31,-.01),(.31,.01),(.29,.026),(.244,.026)],'#a9b2b7',1,axis='x',n=48,explode=exp,wheel=center,material='metal')
+  for k in range(6):
+   a=k*math.tau/6
+   box('Machined hub spoke',[hub[0],.56+.17*math.cos(a),z+.17*math.sin(a)],[.045,.19,.046],'#a9b2b7',1,explode=exp,wheel=center,rx=a)
+  merge_since(start,'Silver wheel hub',material='metal',wheel=center,detail='Open six-spoke rim with machined lip')
+  lathe('Hub center',[x+side*.23,.56,z],[(.054,-.03),(.095,-.03),(.106,-.02),(.106,.02),(.095,.03),(.054,.03)],'#89969f',1,axis='x',n=40,explode=exp,wheel=center,material='metal')
+  cyl('DC drive motor',[side*.95,.56,z],.17,.53,'#aab0b4',1,n=48,explode=[side*.45,.15,z*.25])
   box('Gearbox housing',[side*1.2,.56,z],[.22,.36,.34],'#797f83',1,explode=[side*.55,.1,z*.25])
 # Central battery, front black linkage carriage, servo and twin rails.
 box('Battery pack',[-.48,.77,-.6],[.65,.35,1.1],'#1c2228',2,explode=[-.35,.7,-.2])
@@ -213,7 +218,9 @@ for item in parts:
  name=item['name']
  system=item.get('system') or ('drive' if item['g']==1 else 'frame' if item['g']==0 else 'electronics' if any(k in name for k in ['Controller','Control board','PCB','Board standoff','Battery']) else 'mechanism')
  item['system']=system;idx=counts.get(system,0);counts[system]=idx+1
- if system=='wiring':continue
+ if system=='wiring':
+  item['explode']=[-1.0-idx*.025,.85+(idx%4)*.09,.15];item['delay']=.50+idx*.008
+  continue
  if system=='frame':
   exp=item['explode'];item['explode']=[exp[0]*3.2+(idx%3-1)*.12,exp[1]*2.4+(idx%4)*.18,exp[2]*3+(idx%5-2)*.16]
   if 'fastener' in name:item['explode']=[(-1 if item['p'][0]<0 else 1)*3.2,.7+(idx%4)*.27,(idx//4%4-1.5)*.72]
@@ -228,6 +235,26 @@ for item in parts:
  if item.get('hardware'):
   axis=item['fastenerAxis'];direction=-1 if axis=='x' and item['p'][0]<0 else 1
   item['explode']=[0,0,0];item['explode'][{'x':0,'y':1,'z':2}[axis]]=direction*(2.4 if axis=='x' else 2.1)
+  item['delay']=.015
+ # Keep soldered and mechanically attached objects together. Parts withdraw along
+ # their real mounting axes instead of scattering into arbitrary display lanes.
+ side=-1 if item['p'][0]<0 else 1
+ if system=='frame':
+  item['explode']=[side*.65 if 'side' in name.lower() or 'Longitudinal' in name else 0,-.12 if 'lower' in name else .28,-.75 if 'rear wall' in name else 0]
+  item['delay']=.20
+ elif system=='drive':
+  travel=1.05 if 'Rubber' in name else 1.35 if name=='Silver wheel hub' else 1.6 if name=='Hub center' else .45
+  item['explode']=[side*travel,0,0];item['delay']=.13
+ elif system=='mechanism':
+  item['explode']=[item['p'][0]*.15,.55,.65 if item['p'][2]>.5 else .15];item['delay']=.30
+ elif system=='electronics':
+  item['explode']=[-.12,.75,-.35] if 'Battery' in name else [0,1.22,0]
+  if 'mounting plate' in name:item['explode']=[0,.65,0]
+  item['delay']=.40
+ elif system=='wiring':
+  item['explode']=[-1.0-index*.025,.85+(index%4)*.09,.15];item['delay']=.50+index*.008
+ if item.get('hardware'):
+  axis=item['fastenerAxis'];item['explode']=[0,0,0];item['explode'][{'x':0,'y':1,'z':2}[axis]]=side*1.85 if axis=='x' else 1.85
   item['delay']=.015
 def compact(value):
  if isinstance(value,float):return round(value,5)

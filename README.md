@@ -67,3 +67,5 @@ The GitHub repository contains the full site. GitHub Pages publication remains p
 [Hyperdrive reference research and model limits](docs/hyperdrive-reference-notes.md).
 
 Mechanical explorer detail: recessed hex sockets, captive washers and continuous helical threads are modelled as geometry. Hollow aluminium U-channels, chamfered edges, bored bearings, folded mounting angles and brass standoffs use studio-lit metal materials. Fasteners rotate as they withdraw. The 179-part assembly remains an illustrative, photo-referenced model rather than measured manufacturing CAD.
+
+The explorer uses a neutral studio sweep, a ground plane at tyre contact height, soft variance shadows and camera-space framing. Tyres have rounded sidewalls and open six-spoke hubs; rubber grain and PCB traces are local procedural textures. Disassembly follows mounting axes and retains soldered controller components together. No external model or texture downloads are required.

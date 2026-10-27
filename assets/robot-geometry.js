@@ -1,5 +1,17 @@
 // Shared geometry for the WebGL and Canvas renderers. Y is up; +Z is the intake.
 export const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+// Fit the actual camera-space bounds, not a bounding sphere. A sphere pulled
+// the wide, shallow robot far away and made it look like a miniature icon.
+export function fitCameraDistance(lo,hi,{yaw,pitch,aspect,fov=34,padding=1.12}){
+ const c=lo.map((v,i)=>(v+hi[i])/2),t=Math.tan(fov*Math.PI/360);
+ const right=[Math.cos(yaw),0,-Math.sin(yaw)],up=[-Math.sin(yaw)*Math.sin(pitch),Math.cos(pitch),-Math.cos(yaw)*Math.sin(pitch)],near=[Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)];
+ const dot=(a,b)=>a.reduce((sum,v,i)=>sum+v*b[i],0);let distance=0;
+ for(const x of [lo[0],hi[0]])for(const y of [lo[1],hi[1]])for(const z of [lo[2],hi[2]]){
+  const p=[x-c[0],y-c[1],z-c[2]],depth=dot(p,near);
+  distance=Math.max(distance,depth+padding*Math.abs(dot(p,up))/t,depth+padding*Math.abs(dot(p,right))/(t*Math.max(.1,aspect)));
+ }
+ return Math.max(1,distance);
+}
 export function offsetPart(part,separation){
   const t=clamp((separation-(part.delay??part.g*.12))/(1-(part.delay??part.g*.12)));
   const amount=t*t*(3-2*t);
